@@ -1,0 +1,7 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mcp-hub",
+  "compatibility_date": "2025-07-01",
+  "main": "src/index.ts",
+  "routes": [{ "pattern": "mcp.jask.dev", "custom_domain": true }]
+}
