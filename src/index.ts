@@ -84,7 +84,7 @@ const SOURCES: SourceConfig[] = [
   },
 ];
 
-const INSTRUCTIONS = (origin: string, srcs: SourceConfig[], uzen: boolean) => `MCP hub for ${uzen ? 'UZEN Labs product' : 'all Jask / UZEN Labs'} content: ${srcs.map((s) => `${s.site} (${s.kind})`).join('; ')}. Endpoint: ${uzen ? origin : origin + '/mcp'}. Use search() across sites to find relevant pieces (supports EN/ZH keywords), then read(site, id) for full text. Always cite the URL fields in your answers. Source sites update their snapshots on every deploy; this hub refreshes within an hour.`;
+const INSTRUCTIONS = (origin: string, srcs: SourceConfig[], uzen: boolean) => `MCP hub for ${uzen ? 'UZEN Labs product' : 'all Jask / UZEN Labs'} content: ${srcs.map((s) => `${s.site} (${s.kind})`).join('; ')}. Endpoint: ${uzen ? origin + '/' : origin + '/mcp'}. Use search() across sites to find relevant pieces (supports EN/ZH keywords), then read(site, id) for full text. Always cite the URL fields in your answers. Source sites update their snapshots on every deploy; this hub refreshes within an hour.`;
 
 const TOOLS_FOR = (srcs: SourceConfig[]) => [
   {
