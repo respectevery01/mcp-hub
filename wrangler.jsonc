@@ -3,5 +3,5 @@
   "name": "mcp-hub",
   "compatibility_date": "2025-07-01",
   "main": "src/index.ts",
-  "routes": [{ "pattern": "mcp.jask.dev", "custom_domain": true }]
+  "routes": [{ "pattern": "mcp.jask.dev", "custom_domain": true }, { "pattern": "mcp.uzenlabs.com", "custom_domain": true }]
 }

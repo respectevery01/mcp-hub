@@ -20,6 +20,8 @@
 
 const PROTOCOL_VERSION = '2025-03-26';
 const SERVER_INFO = { name: 'jask-mcp-hub', version: '1.0.0', title: 'Jask MCP Hub', version_human: 'v1.0' };
+const SERVER_INFO_UZEN = { name: 'uzenlabs-mcp-hub', version: '1.0.0', title: 'UZEN Labs MCP Hub', version_human: 'v1.0' };
+const SERVER_INFO_FOR = (request: Request) => (isUzenHost(request) ? SERVER_INFO_UZEN : SERVER_INFO);
 
 interface SourceConfig {
   id: string;
@@ -82,9 +84,9 @@ const SOURCES: SourceConfig[] = [
   },
 ];
 
-const INSTRUCTIONS = `MCP hub for all Jask / UZEN Labs content: ${SOURCES.map((s) => `${s.site} (${s.kind})`).join('; ')}. Use search() across sites to find relevant pieces (supports EN/ZH keywords), then read(site, id) for full text. Always cite the URL fields in your answers. Source sites update their snapshots on every deploy; this hub refreshes within an hour.`;
+const INSTRUCTIONS = (origin: string, srcs: SourceConfig[]) => `MCP hub for ${isUzenHost ? 'UZEN Labs product' : 'all Jask / UZEN Labs'} content: ${srcs.map((s) => `${s.site} (${s.kind})`).join('; ')}. Endpoint: ${origin}/mcp. Use search() across sites to find relevant pieces (supports EN/ZH keywords), then read(site, id) for full text. Always cite the URL fields in your answers. Source sites update their snapshots on every deploy; this hub refreshes within an hour.`;
 
-const TOOLS = [
+const TOOLS_FOR = (srcs: SourceConfig[]) => [
   {
     name: 'list_sites',
     description: 'List every content source connected to this hub, with item counts and content types.',
@@ -98,7 +100,7 @@ const TOOLS = [
       type: 'object',
       properties: {
         query: { type: 'string', description: 'Keywords, e.g. "wallet drainer", "permit2 钓鱼", "geo score", "cloudflare 实战"' },
-        site: { type: 'string', enum: SOURCES.map((s) => s.id), description: 'Optional: restrict to one source' },
+        site: { type: 'string', enum: srcs.map((s) => s.id), description: 'Optional: restrict to one source' },
         lang: { type: 'string', enum: ['en', 'zh', 'ja', 'es'], description: 'Optional: restrict to one language' },
       },
       required: ['query'],
@@ -111,7 +113,7 @@ const TOOLS = [
     inputSchema: {
       type: 'object',
       properties: {
-        site: { type: 'string', enum: SOURCES.map((s) => s.id), description: 'Which source site' },
+        site: { type: 'string', enum: srcs.map((s) => s.id), description: 'Which source site' },
         id: { type: 'string', description: 'Item id from search results' },
       },
       required: ['site', 'id'],
@@ -134,6 +136,11 @@ const joinUrl = (origin: string, url?: string): string => {
   if (!url) return origin;
   return url.startsWith('http') ? url : origin + url;
 };
+
+const originOf = (request: Request): string => new URL(request.url).origin;
+const isUzenHost = (request: Request): boolean => new URL(request.url).hostname.endsWith('uzenlabs.com');
+// mcp.uzenlabs.com serves product lines only — the personal blog stays on mcp.jask.dev
+const sourcesFor = (request: Request): SourceConfig[] => (isUzenHost(request) ? SOURCES.filter((s) => s.id !== 'blog') : SOURCES);
 
 const json = (obj: unknown, status = 200, extra: Record<string, string> = {}) =>
   new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS, ...extra } });
@@ -189,9 +196,9 @@ async function getManifest(src: SourceConfig): Promise<Manifest | null> {
 
 // ---------------------------------------------------------------- tools
 
-async function toolListSites() {
+async function toolListSites(origin: string, srcs: SourceConfig[], brand: string) {
   const lines: string[] = [];
-  for (const src of SOURCES) {
+  for (const src of srcs) {
     const m = await getManifest(src);
     const n = m ? m.items.length : '?';
     const langs = m ? [...new Set(m.items.map((i) => i.lang))].sort().join('/') : '?';
@@ -199,11 +206,11 @@ async function toolListSites() {
     lines.push(`## ${src.site} (site id: "${src.id}")\n- ${src.kind}\n- ${n} items — types: ${types} — langs: ${langs}${m?.updated ? ` — updated ${m.updated}` : ''}\n- Origin: ${src.origin}`);
   }
   return textContent(
-    `Jask MCP Hub — ${SOURCES.length} sources connected. Endpoint: https://mcp.jask.dev/mcp\n\n${lines.join('\n\n')}\n\nUse search(query, site?) to find content, read(site, id) for full text.`
+    `${brand} MCP Hub — ${srcs.length} sources connected. Endpoint: ${origin}/mcp\n\n${lines.join('\n\n')}\n\nUse search(query, site?) to find content, read(site, id) for full text.`
   );
 }
 
-async function toolSearch(args: Record<string, unknown>) {
+async function toolSearch(args: Record<string, unknown>, srcs: SourceConfig[]) {
   const query = String(args?.query ?? '').trim();
   if (!query) return textContent('Error: query is required.', true);
   const siteFilter = args?.site ? String(args.site) : null;
@@ -211,7 +218,7 @@ async function toolSearch(args: Record<string, unknown>) {
   const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
 
   const results: { src: SourceConfig; item: ManifestItem; score: number }[] = [];
-  for (const src of SOURCES) {
+  for (const src of srcs) {
     if (siteFilter && src.id !== siteFilter) continue;
     const m = await getManifest(src);
     if (!m) continue;
@@ -254,10 +261,10 @@ function normalizeId(raw: unknown): string {
   return s.replace(/^\/+|\/+$/g, '');
 }
 
-async function toolRead(args: Record<string, unknown>) {
+async function toolRead(args: Record<string, unknown>, srcs: SourceConfig[]) {
   const siteId = String(args?.site ?? '').trim();
-  const src = SOURCES.find((s) => s.id === siteId);
-  if (!src) return textContent(`Error: unknown site "${siteId}". Valid: ${SOURCES.map((s) => s.id).join(', ')}.`, true);
+  const src = srcs.find((s) => s.id === siteId);
+  if (!src) return textContent(`Error: unknown site "${siteId}". Valid: ${srcs.map((s) => s.id).join(', ')}.`, true);
   const id = normalizeId(args?.id);
   if (!id) return textContent('Error: id is required (get it from search results).', true);
 
@@ -298,14 +305,14 @@ async function toolRead(args: Record<string, unknown>) {
 
 // ---------------------------------------------------------------- protocol
 
-async function handleToolCall(params: { name?: string; arguments?: Record<string, unknown> }) {
+async function handleToolCall(params: { name?: string; arguments?: Record<string, unknown> }, origin: string, srcs: SourceConfig[], request: Request) {
   const name = params?.name;
   const args = params?.arguments ?? {};
   try {
     switch (name) {
-      case 'list_sites': return await toolListSites();
-      case 'search': return await toolSearch(args);
-      case 'read': return await toolRead(args);
+      case 'list_sites': return await toolListSites(origin, srcs, isUzenHost(request) ? 'UZEN Labs' : 'Jask');
+      case 'search': return await toolSearch(args, srcs);
+      case 'read': return await toolRead(args, srcs);
       default: return textContent(`Unknown tool: ${name}`, true);
     }
   } catch (err) {
@@ -327,16 +334,16 @@ async function handleRpc(request: Request): Promise<Response> {
       return rpcResult(id, {
         protocolVersion: PROTOCOL_VERSION,
         capabilities: { tools: { listChanged: false } },
-        serverInfo: SERVER_INFO,
-        instructions: INSTRUCTIONS,
+        serverInfo: SERVER_INFO_FOR(request),
+        instructions: INSTRUCTIONS(originOf(request), sourcesFor(request)),
       });
     case 'notifications/initialized':
     case 'initialized':
       return new Response(null, { status: 202, headers: CORS_HEADERS });
     case 'tools/list':
-      return rpcResult(id, { tools: TOOLS });
+      return rpcResult(id, { tools: TOOLS_FOR(sourcesFor(request)) });
     case 'tools/call':
-      return rpcResult(id, await handleToolCall(params ?? {}));
+      return rpcResult(id, await handleToolCall(params ?? {}, originOf(request), sourcesFor(request), request));
     case 'ping':
       return rpcResult(id, {});
     default:
@@ -346,8 +353,12 @@ async function handleRpc(request: Request): Promise<Response> {
 
 // ---------------------------------------------------------------- portal page
 
-function portalPage(): Response {
-  const rows = SOURCES.map((s) => {
+function portalPage(request: Request): Response {
+  const uzen = isUzenHost(request);
+  const srcs = sourcesFor(request);
+  const brand = uzen ? 'UZEN Labs' : 'Jask';
+  const origin = originOf(request);
+  const rows = srcs.map((s) => {
     const m = manifestCache.get(s.id)?.data;
     const n = m ? String(m.items.length) : '—';
     return `<tr><td><code>${s.id}</code></td><td><a href="${s.origin}" rel="noopener">${s.site}</a></td><td>${s.kind}</td><td class="num">${n}</td></tr>`;
@@ -391,9 +402,9 @@ function portalPage(): Response {
 </style>
 </head>
 <body><main>
-<h1>Jask <span class="accent">MCP Hub</span></h1>
-<p class="sub">One Model Context Protocol endpoint serving every Jask / UZEN Labs product's content. Read-only, no auth.</p>
-<span class="ep"><code>https://mcp.jask.dev/mcp</code></span>
+<h1>${uzen ? 'UZEN Labs' : 'Jask'} <span class="accent">MCP Hub</span></h1>
+<p class="sub">One Model Context Protocol endpoint serving ${uzen ? 'every UZEN Labs product line' : "every Jask / UZEN Labs product's content"}. Read-only, no auth.</p>
+<span class="ep"><code>${origin}/mcp</code></span>
 <h2>Sources</h2>
 <table><tr><th>site id</th><th>site</th><th>content</th><th>items</th></tr>${rows}</table>
 <h2>Tools</h2>
@@ -401,13 +412,13 @@ function portalPage(): Response {
 <code>search(query, site?, lang?)</code> — cross-site keyword search (EN/ZH)<br>
 <code>read(site, id)</code> — full text of one item as markdown</p>
 <h2>Try it</h2>
-<pre>curl https://mcp.jask.dev/mcp \\
+<pre>curl ${origin}/mcp \\
   -H 'content-type: application/json' \\
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize",
        "params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"curl","version":"0"}}}'
 
 # then search + read
-curl https://mcp.jask.dev/mcp -H 'content-type: application/json' \\
+curl ${origin}/mcp -H 'content-type: application/json' \\
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/call",
        "params":{"name":"search","arguments":{"query":"wallet drainer"}}}'</pre>
 <h2>Use with an MCP client</h2>
@@ -415,7 +426,7 @@ curl https://mcp.jask.dev/mcp -H 'content-type: application/json' \\
   "mcpServers": {
     "jask": {
       "type": "http",
-      "url": "https://mcp.jask.dev/mcp"
+      "url": "${origin}/mcp"
     }
   }
 }</pre>
@@ -426,7 +437,7 @@ curl https://mcp.jask.dev/mcp -H 'content-type: application/json' \\
   <pre id="promptText">Help me connect to an MCP server to search and read a collection of technical content in English and Chinese.
 
 Server endpoint (Streamable HTTP, no auth required, connect directly):
-https://mcp.jask.dev/mcp
+${origin}/mcp
 
 It exposes 3 read-only tools:
 - list_sites() — list all connected content sources with item counts
@@ -436,15 +447,14 @@ It exposes 3 read-only tools:
 Content sources (~570 items, auto-updated):
 - theonchaindiary.com — Web3 on-chain security education, articles + glossary (EN/ZH)
 - zens.ink — SEO workflow docs (EN/ZH/JA/ES)
-- blog.jask.dev — indie dev tech blog (ZH)
-- liteink.co — Astro template shop, themes + docs (EN)
+${uzen ? '' : '- blog.jask.dev — indie dev tech blog (ZH)\n'}- liteink.co — Astro template shop, themes + docs (EN)
 - revolutio.si — AI disruption intelligence, industry analyses (EN)
 - uzenlabs.com — product build logs (EN)
 
 If you support MCP: add the server above now, call list_sites to confirm the connection, then tell me what I can search.
 If you do not support MCP: tell me which client app I should use to connect to this server, with concrete steps.</pre>
 </div>
-<footer>Content snapshots update automatically when source sites deploy. Individual endpoints: <a href="https://theonchaindiary.com/api/mcp">onchain diary</a> · <a href="https://jask.dev/mcp">about this hub</a></footer>
+<footer>Content snapshots update automatically when source sites deploy. Individual endpoints: <a href="https://theonchaindiary.com/api/mcp">onchain diary</a> · <a href="${uzen ? 'https://uzenlabs.com/mcp' : 'https://jask.dev/mcp'}">about this hub</a></footer>
 </main>
 <script>
 document.getElementById('copyPrompt').addEventListener('click', function () {
@@ -462,15 +472,18 @@ document.getElementById('copyPrompt').addEventListener('click', function () {
   return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8', ...CORS_HEADERS, 'Cache-Control': 'public, max-age=300' } });
 }
 
-function wellKnown(): Response {
+function wellKnown(origin: string): Response {
+  const uzen = origin.includes('uzenlabs.com');
   return json({
     servers: [
       {
-        name: 'jask-mcp-hub',
-        title: 'Jask MCP Hub',
-        description: 'All Jask / UZEN Labs product content in one MCP endpoint: Web3 security (Onchain Diary), SEO workflow docs (ZensInk), build logs (UZEN Labs), personal blog.',
+        name: uzen ? 'uzenlabs-mcp-hub' : 'jask-mcp-hub',
+        title: uzen ? 'UZEN Labs MCP Hub' : 'Jask MCP Hub',
+        description: uzen
+          ? 'All UZEN Labs product content in one MCP endpoint: Web3 security (Onchain Diary), SEO workflow docs (ZensInk), Astro templates (LiteInk), AI disruption intelligence (Revolutio), build logs.'
+          : 'All Jask / UZEN Labs product content in one MCP endpoint: Web3 security (Onchain Diary), SEO workflow docs (ZensInk), build logs (UZEN Labs), personal blog.',
         transport: 'streamable-http',
-        url: 'https://mcp.jask.dev/mcp',
+        url: `${origin}/mcp`,
         auth: 'none',
         tools: ['list_sites', 'search', 'read'],
       },
@@ -483,17 +496,21 @@ function wellKnown(): Response {
 export default {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
+    const uzen = isUzenHost(request);
+    const srcs = sourcesFor(request);
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS });
 
-    if (url.pathname === '/' || url.pathname === '/index.html') {
-      // warm manifests so item counts render on first visit
-      await Promise.allSettled(SOURCES.map((s) => getManifest(s)));
-      return portalPage();
-    }
-    if (url.pathname === '/.well-known/mcp.json') return wellKnown();
-    if (url.pathname === '/sites.json') {
+    let res: Response;
+    if (url.pathname === '/robots.txt') {
+      res = new Response(uzen ? 'User-agent: *\nDisallow: /\n' : 'User-agent: *\nAllow: /\n', { headers: { 'Content-Type': 'text/plain; charset=utf-8', ...CORS_HEADERS } });
+    } else if (url.pathname === '/' || url.pathname === '/index.html') {
+      await Promise.allSettled(srcs.map((s) => getManifest(s)));
+      res = portalPage(request);
+    } else if (url.pathname === '/.well-known/mcp.json') {
+      res = wellKnown(originOf(request));
+    } else if (url.pathname === '/sites.json') {
       const sites = await Promise.all(
-        SOURCES.map(async (s) => {
+        srcs.map(async (s) => {
           const m = await getManifest(s);
           return {
             id: s.id, site: s.site, origin: s.origin, kind: s.kind,
@@ -504,16 +521,19 @@ export default {
           };
         }),
       );
-      return json({ hub: 'https://mcp.jask.dev/mcp', sites, total: sites.reduce((a, b) => a + b.items, 0) });
-    }
-    if (url.pathname === '/mcp' || url.pathname === '/api/mcp') {
+      res = json({ hub: `${originOf(request)}/mcp`, sites, total: sites.reduce((a, b) => a + b.items, 0) });
+    } else if (url.pathname === '/mcp' || url.pathname === '/api/mcp') {
       if (request.method !== 'POST') {
-        return new Response('Method Not Allowed. MCP endpoint accepts POST (JSON-RPC 2.0). Docs: https://mcp.jask.dev/', {
+        res = new Response('Method Not Allowed. MCP endpoint accepts POST (JSON-RPC 2.0). Docs: ' + originOf(request) + '/', {
           status: 405, headers: { Allow: 'POST, OPTIONS', ...CORS_HEADERS },
         });
+      } else {
+        res = await handleRpc(request);
       }
-      return handleRpc(request);
+    } else {
+      res = new Response('Not Found. See ' + originOf(request) + '/ — MCP endpoint at /mcp', { status: 404, headers: CORS_HEADERS });
     }
-    return new Response('Not Found. See https://mcp.jask.dev/ — MCP endpoint at /mcp', { status: 404, headers: CORS_HEADERS });
+    if (uzen) res.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    return res;
   },
 };
