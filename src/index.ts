@@ -426,6 +426,21 @@ export default {
       return portalPage();
     }
     if (url.pathname === '/.well-known/mcp.json') return wellKnown();
+    if (url.pathname === '/sites.json') {
+      const sites = await Promise.all(
+        SOURCES.map(async (s) => {
+          const m = await getManifest(s);
+          return {
+            id: s.id, site: s.site, origin: s.origin, kind: s.kind,
+            items: m ? m.items.length : 0,
+            langs: m ? [...new Set(m.items.map((i) => i.lang))].sort() : [],
+            types: m ? [...new Set(m.items.map((i) => i.type))].sort() : [],
+            updated: m?.updated ?? null,
+          };
+        }),
+      );
+      return json({ hub: 'https://mcp.jask.dev/mcp', sites, total: sites.reduce((a, b) => a + b.items, 0) });
+    }
     if (url.pathname === '/mcp' || url.pathname === '/api/mcp') {
       if (request.method !== 'POST') {
         return new Response('Method Not Allowed. MCP endpoint accepts POST (JSON-RPC 2.0). Docs: https://mcp.jask.dev/', {
