@@ -84,7 +84,7 @@ const SOURCES: SourceConfig[] = [
   },
 ];
 
-const INSTRUCTIONS = (origin: string, srcs: SourceConfig[]) => `MCP hub for ${isUzenHost ? 'UZEN Labs product' : 'all Jask / UZEN Labs'} content: ${srcs.map((s) => `${s.site} (${s.kind})`).join('; ')}. Endpoint: ${origin}/mcp. Use search() across sites to find relevant pieces (supports EN/ZH keywords), then read(site, id) for full text. Always cite the URL fields in your answers. Source sites update their snapshots on every deploy; this hub refreshes within an hour.`;
+const INSTRUCTIONS = (origin: string, srcs: SourceConfig[], uzen: boolean) => `MCP hub for ${uzen ? 'UZEN Labs product' : 'all Jask / UZEN Labs'} content: ${srcs.map((s) => `${s.site} (${s.kind})`).join('; ')}. Endpoint: ${uzen ? origin : origin + '/mcp'}. Use search() across sites to find relevant pieces (supports EN/ZH keywords), then read(site, id) for full text. Always cite the URL fields in your answers. Source sites update their snapshots on every deploy; this hub refreshes within an hour.`;
 
 const TOOLS_FOR = (srcs: SourceConfig[]) => [
   {
@@ -335,7 +335,7 @@ async function handleRpc(request: Request): Promise<Response> {
         protocolVersion: PROTOCOL_VERSION,
         capabilities: { tools: { listChanged: false } },
         serverInfo: SERVER_INFO_FOR(request),
-        instructions: INSTRUCTIONS(originOf(request), sourcesFor(request)),
+        instructions: INSTRUCTIONS(originOf(request), sourcesFor(request), isUzenHost(request)),
       });
     case 'notifications/initialized':
     case 'initialized':
@@ -501,6 +501,23 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS });
 
     let res: Response;
+
+    // mcp.uzenlabs.com — bare endpoint domain: POST / is the MCP server itself.
+    // No portal page, no /mcp sub-path (the domain IS the path), nothing else.
+    if (uzen) {
+      if (request.method === 'POST' && (url.pathname === '/' || url.pathname === '/mcp')) {
+        res = await handleRpc(request);
+      } else if (url.pathname === '/robots.txt') {
+        res = new Response('User-agent: *\nDisallow: /\n', { headers: { 'Content-Type': 'text/plain; charset=utf-8', ...CORS_HEADERS } });
+      } else if (request.method === 'GET' && url.pathname === '/') {
+        res = new Response('UZEN Labs MCP endpoint. POST JSON-RPC 2.0 to this URL. Docs: https://uzenlabs.com/mcp/', { status: 405, headers: { Allow: 'POST, OPTIONS', ...CORS_HEADERS } });
+      } else {
+        res = new Response('Not Found. MCP endpoint: POST https://mcp.uzenlabs.com/ — docs https://uzenlabs.com/mcp/', { status: 404, headers: CORS_HEADERS });
+      }
+      res.headers.set('X-Robots-Tag', 'noindex, nofollow');
+      return res;
+    }
+
     if (url.pathname === '/robots.txt') {
       res = new Response(uzen ? 'User-agent: *\nDisallow: /\n' : 'User-agent: *\nAllow: /\n', { headers: { 'Content-Type': 'text/plain; charset=utf-8', ...CORS_HEADERS } });
     } else if (url.pathname === '/' || url.pathname === '/index.html') {
