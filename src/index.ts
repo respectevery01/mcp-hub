@@ -65,6 +65,14 @@ const SOURCES: SourceConfig[] = [
     full: 'https://liteink.co/mcp/full.json',
   },
   {
+    id: 'revolutio',
+    site: 'revolutio.si',
+    origin: 'https://revolutio.si',
+    kind: 'AI disruption intelligence — industry analyses, blog only (EN)',
+    manifest: 'https://revolutio.si/mcp/manifest.json',
+    full: 'https://revolutio.si/mcp/full.json',
+  },
+  {
     id: 'uzenlabs',
     site: 'uzenlabs.com',
     origin: 'https://uzenlabs.com',
@@ -425,11 +433,12 @@ It exposes 3 read-only tools:
 - search(query, site?) — search across all sites; query works in English and Chinese; optional site limits to one source
 - read(site, id) — fetch the full text of one item; site and id come from search results
 
-Content sources (~550 items, auto-updated):
+Content sources (~570 items, auto-updated):
 - theonchaindiary.com — Web3 on-chain security education, articles + glossary (EN/ZH)
 - zens.ink — SEO workflow docs (EN/ZH/JA/ES)
 - blog.jask.dev — indie dev tech blog (ZH)
 - liteink.co — Astro template shop, themes + docs (EN)
+- revolutio.si — AI disruption intelligence, industry analyses (EN)
 - uzenlabs.com — product build logs (EN)
 
 If you support MCP: add the server above now, call list_sites to confirm the connection, then tell me what I can search.
