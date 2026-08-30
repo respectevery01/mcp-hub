@@ -57,6 +57,14 @@ const SOURCES: SourceConfig[] = [
     full: 'https://blog.jask.dev/mcp-full.json?v=2',
   },
   {
+    id: 'liteink',
+    site: 'liteink.co',
+    origin: 'https://liteink.co',
+    kind: 'Astro template shop — premium/free themes, docs, blog (EN)',
+    manifest: 'https://liteink.co/mcp/manifest.json',
+    full: 'https://liteink.co/mcp/full.json',
+  },
+  {
     id: 'uzenlabs',
     site: 'uzenlabs.com',
     origin: 'https://uzenlabs.com',
@@ -417,10 +425,11 @@ It exposes 3 read-only tools:
 - search(query, site?) — search across all sites; query works in English and Chinese; optional site limits to one source
 - read(site, id) — fetch the full text of one item; site and id come from search results
 
-Content sources (~500 items, auto-updated):
+Content sources (~550 items, auto-updated):
 - theonchaindiary.com — Web3 on-chain security education, articles + glossary (EN/ZH)
 - zens.ink — SEO workflow docs (EN/ZH/JA/ES)
 - blog.jask.dev — indie dev tech blog (ZH)
+- liteink.co — Astro template shop, themes + docs (EN)
 - uzenlabs.com — product build logs (EN)
 
 If you support MCP: add the server above now, call list_sites to confirm the connection, then tell me what I can search.
