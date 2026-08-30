@@ -53,8 +53,8 @@ const SOURCES: SourceConfig[] = [
     site: 'blog.jask.dev',
     origin: 'https://blog.jask.dev',
     kind: "Jask's personal tech blog (ZH)",
-    manifest: 'https://blog.jask.dev/mcp-manifest.json',
-    full: 'https://blog.jask.dev/mcp-full.json',
+    manifest: 'https://blog.jask.dev/mcp-manifest.json?v=2',
+    full: 'https://blog.jask.dev/mcp-full.json?v=2',
   },
   {
     id: 'uzenlabs',
@@ -127,7 +127,7 @@ const textContent = (text: string, isError = false) => ({
 
 async function fetchJson<T>(url: string): Promise<T | null> {
   try {
-    const res = await fetch(url, { cf: { cacheTtl: 3600, cacheEverything: true } } as RequestInit);
+    const res = await fetch(url, { headers: { 'User-Agent': 'jask-mcp-hub/1.0' }, cf: { cacheTtl: 600, cacheEverything: true } } as RequestInit);
     if (!res.ok) return null;
     return (await res.json()) as T;
   } catch {
