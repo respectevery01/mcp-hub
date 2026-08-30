@@ -366,6 +366,11 @@ function portalPage(): Response {
   pre { background:#14181b; border:1px solid #1e2429; border-radius:8px; padding:16px; overflow:auto; font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace; color:#aebac5; }
   code { font-family: ui-monospace,SFMono-Regular,Menlo,monospace; color:#4a9eff; font-size: .9em; }
   .ep { display:inline-block; background:#14181b; border:1px solid #1e2429; border-radius:6px; padding:6px 12px; margin: 4px 0 20px; }
+  .promptbox { border:1px solid #1e2429; border-radius:8px; overflow:hidden; }
+  .promptbar { display:flex; justify-content:space-between; align-items:center; padding:10px 16px; background:#14181b; border-bottom:1px solid #1e2429; font:11px/1 ui-monospace,Menlo,monospace; text-transform:uppercase; letter-spacing:.12em; color:#5a6672; }
+  .promptbox pre { border:none; border-radius:0; margin:0; max-height:340px; }
+  #copyPrompt { background:#4a9eff; color:#fff; border:none; border-radius:999px; padding:5px 16px; font:12px/1 ui-monospace,Menlo,monospace; cursor:pointer; }
+  #copyPrompt:hover { opacity:.88; }
   footer { margin-top:64px; color:#5a6672; font-size:13px; border-top:1px solid #1e2429; padding-top:20px; }
 </style>
 </head>
@@ -398,8 +403,44 @@ curl https://mcp.jask.dev/mcp -H 'content-type: application/json' \\
     }
   }
 }</pre>
+<h2>No setup? Paste this into any AI chat</h2>
+<p class="sub">Copy the prompt below and send it to any AI assistant — it will set things up or tell you exactly what to do.</p>
+<div class="promptbox">
+  <div class="promptbar"><span>setup prompt</span><button id="copyPrompt" type="button">Copy</button></div>
+  <pre id="promptText">Help me connect to an MCP server to search and read a collection of technical content in English and Chinese.
+
+Server endpoint (Streamable HTTP, no auth required, connect directly):
+https://mcp.jask.dev/mcp
+
+It exposes 3 read-only tools:
+- list_sites() — list all connected content sources with item counts
+- search(query, site?) — search across all sites; query works in English and Chinese; optional site limits to one source
+- read(site, id) — fetch the full text of one item; site and id come from search results
+
+Content sources (~500 items, auto-updated):
+- theonchaindiary.com — Web3 on-chain security education, articles + glossary (EN/ZH)
+- zens.ink — SEO workflow docs (EN/ZH/JA/ES)
+- blog.jask.dev — indie dev tech blog (ZH)
+- uzenlabs.com — product build logs (EN)
+
+If you support MCP: add the server above now, call list_sites to confirm the connection, then tell me what I can search.
+If you do not support MCP: tell me which client app I should use to connect to this server, with concrete steps.</pre>
+</div>
 <footer>Content snapshots update automatically when source sites deploy. Individual endpoints: <a href="https://theonchaindiary.com/api/mcp">onchain diary</a> · <a href="https://jask.dev/mcp">about this hub</a></footer>
-</main></body></html>`;
+</main>
+<script>
+document.getElementById('copyPrompt').addEventListener('click', function () {
+  var t = document.getElementById('promptText').textContent;
+  function done() {
+    var b = document.getElementById('copyPrompt');
+    b.textContent = 'Copied';
+    setTimeout(function () { b.textContent = 'Copy'; }, 1800);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(t).then(done, done); }
+  else { var ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e) {} document.body.removeChild(ta); done(); }
+});
+</script>
+</body></html>`;
   return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8', ...CORS_HEADERS, 'Cache-Control': 'public, max-age=300' } });
 }
 
