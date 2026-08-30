@@ -113,6 +113,12 @@ const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Max-Age': '86400',
 };
 
+
+const joinUrl = (origin: string, url?: string): string => {
+  if (!url) return origin;
+  return url.startsWith('http') ? url : origin + url;
+};
+
 const json = (obj: unknown, status = 200, extra: Record<string, string> = {}) =>
   new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS, ...extra } });
 
@@ -220,7 +226,7 @@ async function toolSearch(args: Record<string, unknown>) {
     const label = item.type === 'glossary'
       ? `${item.term}${item.zhTerm ? ` (${item.zhTerm})` : ''} — ${item.description ?? ''}`
       : `[${src.id}/${item.lang}] ${item.title} (${item.pubDate ?? 'doc'}) — ${item.description ?? ''}`;
-    return `- ${label}\n  ${src.origin}${item.url}  (site: ${src.id}, id: ${item.id})`;
+    return `- ${label}\n  ${joinUrl(src.origin, item.url)}  (site: ${src.id}, id: ${item.id})`;
   });
   return textContent(`Top ${top.length} result(s) for "${query}":\n\n${lines.join('\n\n')}\n\nUse read(site, id) for full text.`);
 }
@@ -251,7 +257,7 @@ async function toolRead(args: Record<string, unknown>) {
     const head = [
       `# ${(shard.term as string) ?? (shard.title as string) ?? id}`,
       '',
-      `- Site: ${src.site} | URL: ${src.origin}${(shard.url as string) ?? (item?.url ?? '')}`,
+      `- Site: ${src.site} | URL: ${joinUrl(src.origin, (shard.url as string) ?? (item?.url ?? ''))}`,
       shard.zhTerm ? `- 中文: ${shard.zhTerm}` : null,
       '',
     ].filter(Boolean).join('\n');
@@ -268,7 +274,7 @@ async function toolRead(args: Record<string, unknown>) {
   const head = [
     `# ${item.title ?? id}`,
     '',
-    `- Site: ${src.site} | URL: ${src.origin}${item.url ?? ''}${item.pubDate ? ` | ${item.pubDate}` : ''}`,
+    `- Site: ${src.site} | URL: ${joinUrl(src.origin, item.url ?? '')}${item.pubDate ? ` | ${item.pubDate}` : ''}`,
     '',
   ].join('\n');
   return textContent(head + (item.content ?? item.markdown ?? ''));
