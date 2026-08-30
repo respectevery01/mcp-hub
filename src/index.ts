@@ -233,7 +233,7 @@ async function toolSearch(args: Record<string, unknown>) {
   const lines = top.map(({ src, item }) => {
     const label = item.type === 'glossary'
       ? `${item.term}${item.zhTerm ? ` (${item.zhTerm})` : ''} — ${item.description ?? ''}`
-      : `[${src.id}/${item.lang}] ${item.title} (${item.pubDate ?? 'doc'}) — ${item.description ?? ''}`;
+      : `[${src.id}/${item.lang}] ${item.title} (${item.pubDate ?? item.type ?? 'doc'}) — ${item.description ?? ''}`;
     return `- ${label}\n  ${joinUrl(src.origin, item.url)}  (site: ${src.id}, id: ${item.id})`;
   });
   return textContent(`Top ${top.length} result(s) for "${query}":\n\n${lines.join('\n\n')}\n\nUse read(site, id) for full text.`);
