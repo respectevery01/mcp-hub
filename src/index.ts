@@ -82,6 +82,14 @@ const SOURCES: SourceConfig[] = [
     manifest: 'https://uzenlabs.com/mcp/manifest.json',
     full: 'https://uzenlabs.com/mcp/full.json',
   },
+  {
+    id: 'urgenth',
+    site: 'www.urgenth.com',
+    origin: 'https://www.urgenth.com',
+    kind: 'Customs & HS classification intelligence — guides + HS Code Finder (EN)',
+    manifest: 'https://www.urgenth.com/mcp/manifest.json',
+    full: 'https://www.urgenth.com/mcp/full.json',
+  },
 ];
 
 const INSTRUCTIONS = (origin: string, srcs: SourceConfig[], uzen: boolean) => `MCP hub for ${uzen ? 'UZEN Labs product' : 'all Jask / UZEN Labs'} content: ${srcs.map((s) => `${s.site} (${s.kind})`).join('; ')}. Endpoint: ${uzen ? origin + '/' : origin + '/mcp'}. Use search() across sites to find relevant pieces (supports EN/ZH keywords), then read(site, id) for full text. Always cite the URL fields in your answers. Source sites update their snapshots on every deploy; this hub refreshes within an hour.`;
@@ -444,12 +452,13 @@ It exposes 3 read-only tools:
 - search(query, site?) — search across all sites; query works in English and Chinese; optional site limits to one source
 - read(site, id) — fetch the full text of one item; site and id come from search results
 
-Content sources (~570 items, auto-updated):
+Content sources (~590 items, auto-updated):
 - theonchaindiary.com — Web3 on-chain security education, articles + glossary (EN/ZH)
 - zens.ink — SEO workflow docs (EN/ZH/JA/ES)
 ${uzen ? '' : '- blog.jask.dev — indie dev tech blog (ZH)\n'}- liteink.co — Astro template shop, themes + docs (EN)
 - revolutio.si — AI disruption intelligence, industry analyses (EN)
 - uzenlabs.com — product build logs (EN)
+- urgenth.com — customs & HS classification guides + HS Code Finder (EN)
 
 If you support MCP: add the server above now, call list_sites to confirm the connection, then tell me what I can search.
 If you do not support MCP: tell me which client app I should use to connect to this server, with concrete steps.</pre>
@@ -480,8 +489,8 @@ function wellKnown(origin: string): Response {
         name: uzen ? 'uzenlabs-mcp-hub' : 'jask-mcp-hub',
         title: uzen ? 'UZEN Labs MCP Hub' : 'Jask MCP Hub',
         description: uzen
-          ? 'All UZEN Labs product content in one MCP endpoint: Web3 security (Onchain Diary), SEO workflow docs (ZensInk), Astro templates (LiteInk), AI disruption intelligence (Revolutio), build logs.'
-          : 'All Jask / UZEN Labs product content in one MCP endpoint: Web3 security (Onchain Diary), SEO workflow docs (ZensInk), build logs (UZEN Labs), personal blog.',
+          ? 'All UZEN Labs product content in one MCP endpoint: Web3 security (Onchain Diary), SEO workflow docs (ZensInk), Astro templates (LiteInk), AI disruption intelligence (Revolutio), customs & HS classification (Urgenth), build logs.'
+          : 'All Jask / UZEN Labs product content in one MCP endpoint: Web3 security (Onchain Diary), SEO workflow docs (ZensInk), customs & HS classification (Urgenth), build logs (UZEN Labs), personal blog.',
         transport: 'streamable-http',
         url: `${origin}/mcp`,
         auth: 'none',
