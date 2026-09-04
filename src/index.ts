@@ -520,6 +520,8 @@ export default {
         res = new Response('User-agent: *\nDisallow: /\n', { headers: { 'Content-Type': 'text/plain; charset=utf-8', ...CORS_HEADERS } });
       } else if (request.method === 'GET' && url.pathname === '/') {
         res = new Response('UZEN Labs MCP endpoint. POST JSON-RPC 2.0 to this URL. Docs: https://uzenlabs.com/mcp/', { status: 405, headers: { Allow: 'POST, OPTIONS', ...CORS_HEADERS } });
+      } else if (request.method === 'GET' && url.pathname === '/mcp') {
+        res = new Response('UZEN Labs MCP endpoint. POST JSON-RPC 2.0 to this URL (or to the domain root). Docs: https://uzenlabs.com/mcp/', { status: 405, headers: { Allow: 'POST, OPTIONS', ...CORS_HEADERS } });
       } else {
         res = new Response('Not Found. MCP endpoint: POST https://mcp.uzenlabs.com/ — docs https://uzenlabs.com/mcp/', { status: 404, headers: CORS_HEADERS });
       }
